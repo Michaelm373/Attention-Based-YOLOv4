@@ -176,9 +176,7 @@ if __name__ == "__main__":
     if device == 'cuda':
         model.cuda()
     loss_fn = YoloLoss()
-    optimizer = optim.Adam(model.pannet.parameters(), lr=0.01, weight_decay=0.0005)
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=0.00001)
-
+    
     # dataset
     anchors = [
         [(0.02, 0.03), (0.04, 0.07), (0.08, 0.06)],
@@ -227,10 +225,20 @@ if __name__ == "__main__":
     train_loader, test_loader, eval_loader = get_loaders(train_path, test_path, im_dir, label_dir, anchors,
                                                          train_transforms)
 
+    # in the paper, the training was done with cosine annealing with a minimum lr of 0.00001 and weight decay of 0.0005 for 3000 iterations
+    optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=0.0005)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=0.00001)
 
     train_losses, val_losses = train(train_loader, eval_loader, test_loader, model, optimizer, scheduler, loss_fn, anchors, device,
-                                     train_pass, validation_pass, epochs=1001, labels=classes)
-
+                                     train_pass, validation_pass, epochs=3000, labels=classes)
+    
+    # the training then continues with a max lr of 0.0001
+    optimizer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=0.0005)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=1000, eta_min=0.00001)
+    
+    train_losses, val_losses = train(train_loader, eval_loader, test_loader, model, optimizer, scheduler, loss_fn, anchors, device,
+                                     train_pass, validation_pass, epochs=1000, labels=classes)
+    
     # plots the loss throughout training
     x_axis = list(range(len(train_losses)))
     ax = plt.gca()
